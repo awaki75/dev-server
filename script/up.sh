@@ -1,42 +1,43 @@
 #!/bin/bash
 
-set -eux
-
-AA_DOCKER_HOST=192.168.99.100
+set -eu
+cd $(dirname $0)/..
+eval "$(cat .env <(echo) <(declare -x))"
+set -x
 
 wait_for_cassandra() {
-  until docker run --rm cassandra:2.1.21 cqlsh ${AA_DOCKER_HOST} -e "SELECT NOW() FROM system.local"; do
+  until docker run --rm cassandra:2.1.21 cqlsh ${PR_DOCKER_HOST} -e "SELECT NOW() FROM system.local"; do
     sleep 10
   done
 }
 
 wait_for_elasticsearch() {
-  until curl -m 3 "http://${AA_DOCKER_HOST}:9200/_cluster/health" | grep "\"status\":\"green\""; do
+  until curl -m 3 "http://${PR_DOCKER_HOST}:9200/_cluster/health" | grep "\"status\":\"green\""; do
     sleep 10
   done
 }
 
 wait_for_redis() {
-  until docker run --rm redis:3.2.12 redis-cli -h ${AA_DOCKER_HOST} ping; do
+  until docker run --rm redis:3.2.12 redis-cli -h ${PR_DOCKER_HOST} ping; do
     sleep 10
   done
 }
 
 wait_for_application() {
-  until curl -m 3 "http://${AA_DOCKER_HOST}:$1/$2/"; do
+  until curl -m 3 "http://${PR_DOCKER_HOST}:$1/$2/" -o /dev/null -w "%{http_code}\n" | grep 200; do
     sleep 10
   done
 }
 
 keyspace_exists() {
-  if docker run --rm cassandra:2.1.21 cqlsh ${AA_DOCKER_HOST} -e "SELECT keyspace_name FROM system.schema_keyspaces WHERE keyspace_name = 'alice'" | grep alice; then
+  if docker run --rm cassandra:2.1.21 cqlsh ${PR_DOCKER_HOST} -e "SELECT keyspace_name FROM system.schema_keyspaces WHERE keyspace_name = 'alice'" | grep alice; then
     return
   fi
   false
 }
 
 create_keyspace() {
-  docker run --rm cassandra:2.1.21 cqlsh ${AA_DOCKER_HOST} -e "CREATE KEYSPACE IF NOT EXISTS alice WITH REPLICATION = { 'class': 'SimpleStrategy', 'replication_factor': 1 }"
+  docker run --rm cassandra:2.1.21 cqlsh ${PR_DOCKER_HOST} -e "CREATE KEYSPACE IF NOT EXISTS alice WITH REPLICATION = { 'class': 'SimpleStrategy', 'replication_factor': 1 }"
 }
 
 docker-compose up -d cassandra elasticsearch redis
