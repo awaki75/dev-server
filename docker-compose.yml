@@ -1,0 +1,47 @@
+version: "3"
+services:
+  cassandra:
+    image: cassandra:2.1.21
+    ports:
+      - 9042:9042
+      - 9160:9160
+    volumes:
+      - cassandradata:/var/lib/cassandra
+  elasticsearch:
+    build: dockerfile/elasticsearch
+    ports:
+      - 9200:9200
+      - 9300:9300
+    volumes:
+      - ./config/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - elasticsearchdata:/usr/share/elasticsearch/data
+  redis:
+    image: redis:3.2.12
+    ports:
+      - 6379:6379
+  nginx1: &nginx
+    image: nginx:1.15.9
+    ports:
+      - 8180:80
+    volumes:
+      - ./config/nginx/default.conf:/etc/nginx/conf.d/default.conf.template:ro
+    environment:
+      EXAMPLES_HOST: tomcat1:8080
+    command: /bin/bash -c "envsubst '$$EXAMPLES_HOST' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"
+  tomcat1: &tomcat
+    image: tomcat:8.0.53-jre8
+    ports:
+      - 8181:8080
+  nginx2:
+    <<: *nginx
+    ports:
+      - 8280:80
+    environment:
+      EXAMPLES_HOST: tomcat2:8080
+  tomcat2:
+    <<: *tomcat
+    ports:
+      - 8281:8080
+volumes:
+  cassandradata:
+  elasticsearchdata:
