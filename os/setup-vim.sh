@@ -5,7 +5,7 @@ set -eux
 sudo apt-get update
 sudo apt-get install vim-nox
 
-cat << EOF > ~/.vimrc
+cat << 'EOF' > ~/.vimrc
 unlet! skip_defaults_vim
 source $VIMRUNTIME/defaults.vim
 
